@@ -135,23 +135,34 @@
 
   btnTest.addEventListener("click", async () => {
     btnTest.disabled = true;
-    btnTestText.textContent = "Menghubungkan API...";
     btnTestSpin.classList.remove("hidden");
     testError.classList.add("hidden");
 
-    try {
-      // Vercel limits python execution to 10s. If Render is asleep, this might throw 504.
-      const res = await fetch("/api/ping");
-      if (res.ok || res.status === 401 || res.status === 404) {
-        // If we get any HTTP response, it means the server is awake!
-        showToast("Koneksi API berhasil!", "success");
-        testContainer.classList.add("hidden");
-        loginFields.classList.remove("hidden");
-      } else {
-        throw new Error("Bad response");
+    let isAwake = false;
+    // Vercel limits python execution to 10s. We will loop up to 6 times (max 60s)
+    for (let i = 1; i <= 6; i++) {
+      btnTestText.textContent = `Menghubungkan API... (Percobaan ${i}/6)`;
+      try {
+        const res = await fetch("/api/ping");
+        if (res.ok || res.status === 401 || res.status === 404) {
+          isAwake = true;
+          break;
+        }
+      } catch (e) {
+        console.log("Ping error:", e);
       }
-    } catch (e) {
-      console.log("Ping error:", e);
+      
+      if (!isAwake && i < 6) {
+        // Wait 2 seconds before next attempt
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    if (isAwake) {
+      showToast("Koneksi API berhasil! Server siap digunakan.", "success");
+      testContainer.classList.add("hidden");
+      loginFields.classList.remove("hidden");
+    } else {
       testError.classList.remove("hidden");
       btnTest.disabled = false;
       btnTestText.textContent = "Coba Lagi (Test Connection)";

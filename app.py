@@ -39,7 +39,15 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ─── API PROXY: AUTH ──────────────────────────────────────────────────────────
+# ─── API PROXY: AUTH ────────────────────────────────────────────────────────────
+
+@app.route("/api/ping", methods=["GET"])
+def api_ping():
+    try:
+        resp = requests.get(f"{BASE_API_URL}/ping", timeout=8)
+        return jsonify(safe_json(resp)), resp.status_code
+    except requests.exceptions.RequestException as e:
+        return jsonify({"detail": f"Server sleep timeout: {str(e)}"}), 503
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
