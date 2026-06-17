@@ -142,6 +142,25 @@
     }
   });
 
+  // Waking up Render API server (Cold Start handling)
+  async function wakeUpServer() {
+    setLoading(true);
+    btnText.textContent = "Membangunkan Server (max 50s)...";
+    
+    try {
+      // Ping the server to wake it up
+      await fetch("/api/ping");
+    } catch (e) {
+      console.log("Ping error:", e);
+    } finally {
+      setLoading(false);
+      btnText.textContent = "Masuk";
+    }
+  }
+
+  // Trigger wake up on load
+  wakeUpServer();
+
   function setLoading(loading) {
     btnText.textContent = loading ? "Masuk..." : "Masuk";
     btnSpin.classList.toggle("hidden", !loading);

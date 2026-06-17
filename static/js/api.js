@@ -33,6 +33,13 @@ export function isLoggedIn() {
   return !!getToken();
 }
 
+// Background ping to keep Render server awake (every 14 minutes)
+if (isLoggedIn()) {
+  setInterval(() => {
+    fetch("/api/ping").catch(e => console.log("Background ping failed:", e));
+  }, 14 * 60 * 1000); // 14 minutes
+}
+
 // ─── Core Fetch Wrapper ───────────────────────────────────────────────────────
 
 /**
