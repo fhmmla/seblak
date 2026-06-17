@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SEBLAK — Sistem Evaluasi Belajar Lab Akademik & Kelas. Manajemen mahasiswa dan penilaian lab berbasis web." />
+  <title>{% block title %}SEBLAK Frontend{% endblock %}</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "sans-serif"] },
+          colors: {
+            brand: {
+              50:  "#eef2ff",
+              100: "#e0e7ff",
+              500: "#6366f1",
+              600: "#4f46e5",
+              700: "#4338ca",
+              900: "#312e81",
+            },
+            persib: {
+              50: '#e8ecf2',
+              100: '#d1d9e5',
+              500: '#1A3C7A',
+              600: '#142d5c',
+              700: '#0e2041',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* Smooth global transitions */
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Glass card replaced with Clean card */
+    .glass-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    /* Sidebar active link */
+    .nav-link.active {
+      background: #eef2ff;
+      border-left: 3px solid #1A3C7A;
+      color: #1A3C7A;
+      font-weight: 600;
+    }
+
+    /* Animated underline for table header */
+    .table-th {
+      position: relative;
+      cursor: default;
+    }
+
+    /* Pulse dot */
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.4); }
+    }
+    .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+    /* Page fade-in */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: none; }
+    }
+    .fade-in-up { animation: fadeInUp 0.45s ease both; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      border: 3px solid #e2e8f0;
+      border-top-color: #1A3C7A;
+      border-radius: 50%;
+      width: 24px; height: 24px;
+      animation: spin 0.7s linear infinite;
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body class="bg-gray-50 min-h-screen text-gray-800 flex flex-col">
+
+  <!-- ── Navbar ──────────────────────────────────────────────────── -->
+  <nav id="main-navbar" class="hidden bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+
+      <!-- Brand -->
+      <a href="/dashboard" class="flex items-center gap-3 group">
+        <div class="w-9 h-9 rounded-xl bg-persib-500 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </div>
+        <div class="leading-tight">
+          <p class="text-gray-900 font-bold text-base tracking-wide">SEBLAK</p>
+          <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest">Sistem Evaluasi Lab</p>
+        </div>
+      </a>
+
+      <!-- Nav Links -->
+      <div class="hidden md:flex items-center gap-1">
+        <a href="/dashboard" id="nav-dashboard"
+           class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all duration-200 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+          </svg>
+          Dashboard Mahasiswa
+        </a>
+        <a href="/penilaian" id="nav-penilaian"
+           class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all duration-200 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Penilaian
+        </a>
+        <a href="/users" id="nav-users"
+           class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all duration-200 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          User (Dosen)
+        </a>
+      </div>
+
+      <!-- User + Logout -->
+      <div class="flex items-center gap-3">
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+          <div class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></div>
+          <span id="navbar-username" class="text-sm text-gray-700 font-medium">—</span>
+        </div>
+        <button onclick="handleLogout()" id="btn-logout"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300 transition-all duration-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          Keluar
+        </button>
+
+        <!-- Mobile menu toggle -->
+        <button id="mobile-menu-btn" class="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="md:hidden hidden px-4 pb-4 space-y-1 bg-white">
+      <a href="/dashboard" class="block px-4 py-2 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">Dashboard Mahasiswa</a>
+      <a href="/penilaian" class="block px-4 py-2 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">Penilaian</a>
+      <a href="/users" class="block px-4 py-2 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">User (Dosen)</a>
+    </div>
+  </nav>
+
+  <!-- ── Main Content ────────────────────────────────────────────── -->
+  <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 fade-in-up">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────────────── -->
+  <footer id="main-footer" class="hidden border-t border-gray-200 bg-white py-4 text-center text-xs text-gray-500 mt-auto">
+    © 2024 SEBLAK Frontend &mdash; Sistem Evaluasi Belajar Lab Akademik &amp; Kelas
+  </footer>
+
+  <!-- ── Global Scripts ──────────────────────────────────────────── -->
+  <script type="module">
+    import { isLoggedIn, getUsername, clearToken } from "/static/js/api.js";
+
+    const IS_AUTH_PAGE = window.location.pathname === "/login";
+
+    function initNavbar() {
+      if (!IS_AUTH_PAGE && isLoggedIn()) {
+        document.getElementById("main-navbar").classList.remove("hidden");
+        document.getElementById("main-footer").classList.remove("hidden");
+        const uname = document.getElementById("navbar-username");
+        if (uname) uname.textContent = getUsername();
+
+        // Active nav highlight
+        const path = window.location.pathname;
+        if (path.startsWith("/dashboard")) document.getElementById("nav-dashboard")?.classList.add("active");
+        if (path.startsWith("/penilaian")) document.getElementById("nav-penilaian")?.classList.add("active");
+        if (path.startsWith("/users")) document.getElementById("nav-users")?.classList.add("active");
+      } else if (!IS_AUTH_PAGE && !isLoggedIn()) {
+        window.location.href = "/login";
+      }
+    }
+
+    // Mobile menu toggle
+    document.getElementById("mobile-menu-btn")?.addEventListener("click", () => {
+      document.getElementById("mobile-menu").classList.toggle("hidden");
+    });
+
+    initNavbar();
+
+    window.handleLogout = function () {
+      clearToken();
+      window.location.href = "/login";
+    };
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

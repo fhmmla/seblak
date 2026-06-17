@@ -1,0 +1,791 @@
+{% extends "base.html" %}
+{% block title %}Penilaian — SEBLAK{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Accordion Card ─────────────────────────────────────────────── */
+  .pertemuan-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .pertemuan-card.is-expanded {
+    border-color: #1A3C7A;
+    box-shadow: 0 0 0 2px rgba(26,60,122,0.12), 0 4px 12px 0 rgba(26,60,122,0.08);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .card-header:hover { background: #f8fafc; }
+  .card-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card-body.open { max-height: 3000px; }
+  .chevron {
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+  }
+  .chevron.rotated { transform: rotate(180deg); }
+
+  /* ── Status Badges ──────────────────────────────────────────────── */
+  .status-open   { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+  .status-closed { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+  /* ── Kelas Badge ────────────────────────────────────────────────── */
+  .kelas-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 10px; border-radius: 9999px;
+    font-size: 11px; font-weight: 700;
+    background: #eff6ff; color: #1A3C7A; border: 1px solid #bfdbfe;
+    font-family: monospace;
+  }
+
+  /* ── Divider inside card ───────────────────────────────────────── */
+  .card-divider { border-top: 1px solid #f1f5f9; }
+
+  /* ── Star Rating ────────────────────────────────────────────────── */
+  .star-btn {
+    width: 36px; height: 36px;
+    cursor: pointer; transition: color 0.15s, transform 0.1s;
+    color: #d1d5db;
+  }
+  .star-btn:hover { transform: scale(1.15); }
+  .star-btn.active { color: #f59e0b; }
+
+  /* ── Filter bar ─────────────────────────────────────────────────── */
+  .filter-select {
+    padding: 6px 36px 6px 12px;
+    border: 1px solid #d1d5db; border-radius: 10px;
+    background: white; color: #374151;
+    font-size: 13px; font-weight: 600;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .filter-select:focus { border-color: #1A3C7A; }
+
+  /* ── NIM Dropdown ───────────────────────────────────────────────── */
+  .nim-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    background: white;
+    color: #374151;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .nim-select:focus {
+    border-color: #1A3C7A;
+    box-shadow: 0 0 0 3px rgba(26,60,122,0.1);
+  }
+
+  /* ── Timer ──────────────────────────────────────────────────────── */
+  .timer-text {
+    font-family: 'Courier New', monospace;
+    font-size: 22px; font-weight: 700;
+    color: #059669; letter-spacing: 2px;
+  }
+</style>
+<!-- TomSelect -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ───────────────────────────────────────────────── -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 mt-4">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Penilaian & Pertemuan</h1>
+    <p class="text-gray-500 text-sm mt-1">Kelola sesi per kelas, timer, dan penilaian bintang mahasiswa.</p>
+  </div>
+  <button onclick="openNewPertemuanModal()"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-xl
+                 bg-persib-500 hover:bg-persib-600
+                 text-white font-semibold text-sm shadow-md hover:shadow-lg
+                 hover:-translate-y-0.5 transition-all duration-200">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Buat Pertemuan Baru
+  </button>
+</div>
+
+<!-- ── Top 10 Leaderboard ────────────────────────────────────────── -->
+<div class="mb-8">
+  <div class="flex items-center gap-2 mb-3 px-1">
+    <span class="text-xl">🏆</span>
+    <h2 class="text-lg font-bold text-gray-900">Top 10 Mahasiswa Terbaik</h2>
+  </div>
+  
+  <div id="leaderboard-loading" class="bg-white border border-gray-200 rounded-2xl p-6 flex items-center justify-center gap-3 shadow-sm">
+    <div class="spinner"></div>
+    <p class="text-gray-500 text-sm">Memuat leaderboard...</p>
+  </div>
+  
+  <div id="leaderboard-container" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <!-- Items go here -->
+  </div>
+</div>
+
+<!-- ── Filter Bar ────────────────────────────────────────────────── -->
+<div class="flex flex-wrap items-center gap-3 mb-6 p-4 bg-white border border-gray-200 rounded-2xl shadow-sm">
+  <div class="flex items-center gap-2">
+    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/>
+    </svg>
+    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Filter Kelas</span>
+  </div>
+  <select id="filter-kelas" class="filter-select" onchange="onFilterChange()">
+    <option value="">Semua Kelas</option>
+  </select>
+  <button onclick="loadPertemuan()" class="text-xs text-gray-500 hover:text-persib-600 flex items-center gap-1 transition ml-auto">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+    </svg>
+    Refresh
+  </button>
+</div>
+
+<!-- ── Pertemuan List (Accordion) ────────────────────────────────── -->
+
+<div id="pertemuan-loading" class="bg-white border border-gray-200 rounded-2xl p-10 flex items-center justify-center gap-3 shadow-sm">
+  <div class="spinner"></div>
+  <p class="text-gray-500 text-sm">Memuat pertemuan...</p>
+</div>
+
+<div id="pertemuan-empty" class="hidden bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
+  <svg class="w-12 h-12 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+  </svg>
+  <p class="text-gray-500 font-bold text-sm">Belum ada pertemuan</p>
+  <p class="text-gray-400 text-xs mt-1">Klik "Buat Pertemuan Baru" untuk memulai sesi.</p>
+</div>
+
+<div id="pertemuan-accordion" class="hidden space-y-3"></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MODAL: New Pertemuan                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="pertemuan-modal" class="hidden fixed inset-0 z-50 flex min-h-screen items-start justify-center p-4 pt-12 sm:pt-20 bg-gray-900/50 backdrop-blur-sm overflow-y-auto">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl mx-auto mb-10">
+    <div class="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-gray-50 rounded-t-2xl">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-gray-900">Buat Pertemuan Baru</h3>
+      </div>
+      <button onclick="closePertemuanModal()" class="text-gray-400 hover:text-gray-600 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+          Kelas <span class="text-red-500">*</span>
+        </label>
+        <select id="input-kelas" class="nim-select">
+          <option value="">-- Pilih Kelas --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+          Topik Pertemuan <span class="text-red-500">*</span>
+        </label>
+        <input type="text" id="input-topik" placeholder="Contoh: Pertemuan 3 — Sorting Algorithm"
+               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900
+                      placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-persib-500 transition"/>
+        <p class="text-xs text-gray-500 mt-2">Timer sesi akan dimulai otomatis saat pertemuan dibuat.</p>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+      <button onclick="closePertemuanModal()"
+              class="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900
+                     bg-gray-100 hover:bg-gray-200 transition">
+        Batal
+      </button>
+      <button id="btn-create-pertemuan" onclick="createPertemuan()"
+              class="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white
+                     bg-emerald-500 hover:bg-emerald-600 transition shadow-md">
+        <span id="btn-create-text">Mulai Pertemuan</span>
+        <div id="btn-create-spinner" class="hidden spinner !w-4 !h-4 border-2"></div>
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import {
+    getPertemuan, createPertemuan as apiCreatePertemuan,
+    tutupPertemuan as apiTutupPertemuan,
+    getNilai, submitNilai as apiSubmitNilai,
+    getMahasiswa, getDaftarKelas, getTopMahasiswa,
+    showToast
+  } from "/static/js/api.js";
+
+  // ── State ──────────────────────────────────────────────────────────
+  let pertemuanList = [];
+  let expandedId    = null;         // ID pertemuan yang sedang expand
+  let timerIntervals = {};          // { pertemuanId: intervalId }
+  let starValues = {};              // { pertemuanId: 0–5 }
+  let mahasiswaCache = {};          // { kelas: [{ nim, nama }] }
+  let kelasList = [];               // Daftar kelas unik
+  let filterKelas = "";             // Nilai filter saat ini
+
+  // ── Init ──────────────────────────────────────────────────────────
+  initKelas();
+
+  async function initKelas() {
+    const { ok, data } = await getDaftarKelas();
+    if (ok && Array.isArray(data)) {
+      kelasList = data;
+      const filterEl = document.getElementById("filter-kelas");
+      const modalEl  = document.getElementById("input-kelas");
+      kelasList.forEach(k => {
+        filterEl.innerHTML += `<option value="${k}">${k}</option>`;
+        modalEl.innerHTML  += `<option value="${k}">${k}</option>`;
+      });
+    }
+    await loadLeaderboard();
+    await loadPertemuan();
+  }
+
+  // ── Load Leaderboard ───────────────────────────────────────────────
+  async function loadLeaderboard() {
+    document.getElementById("leaderboard-loading").classList.remove("hidden");
+    document.getElementById("leaderboard-container").classList.add("hidden");
+    
+    const { ok, data } = await getTopMahasiswa(10);
+    document.getElementById("leaderboard-loading").classList.add("hidden");
+    
+    if (ok && Array.isArray(data)) {
+      const container = document.getElementById("leaderboard-container");
+      container.classList.remove("hidden");
+      
+      if (data.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center text-gray-400 py-6 text-sm border border-dashed rounded-xl border-gray-300">Belum ada mahasiswa dengan rating bintang.</div>`;
+        return;
+      }
+      
+      container.innerHTML = data.map((m, i) => {
+        let badge = "";
+        if (i === 0) badge = "🥇";
+        else if (i === 1) badge = "🥈";
+        else if (i === 2) badge = "🥉";
+        else badge = `<span class="text-gray-400 text-sm font-bold">#${i+1}</span>`;
+        
+        return `
+          <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden group hover:-translate-y-1">
+            ${i === 0 ? '<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-300 to-amber-500"></div>' : ''}
+            <div class="flex items-start justify-between mb-3">
+              <div class="text-2xl">${badge}</div>
+              <div class="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
+                <svg class="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <span class="text-amber-700 font-bold text-sm">${m.total_rating}</span>
+              </div>
+            </div>
+            <h3 class="text-sm font-bold text-gray-900 truncate" title="${m.nama}">${m.nama}</h3>
+            <p class="text-xs text-gray-500 mt-1">${m.nim} • <span class="font-mono text-[10px] bg-gray-100 px-1 rounded">${m.kelas}</span></p>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  // ── Load Pertemuan ─────────────────────────────────────────────────
+  async function loadPertemuan() {
+    document.getElementById("pertemuan-loading").classList.remove("hidden");
+    document.getElementById("pertemuan-empty").classList.add("hidden");
+    document.getElementById("pertemuan-accordion").classList.add("hidden");
+
+    // Hentikan semua timer saat reload
+    Object.keys(timerIntervals).forEach(stopTimer);
+
+    const { ok, data } = await getPertemuan(filterKelas || null);
+    document.getElementById("pertemuan-loading").classList.add("hidden");
+
+    if (ok && Array.isArray(data) && data.length > 0) {
+      pertemuanList = data;
+      expandedId = null;
+      renderAccordion(data);
+    } else if (ok) {
+      document.getElementById("pertemuan-empty").classList.remove("hidden");
+      pertemuanList = [];
+    } else {
+      document.getElementById("pertemuan-empty").classList.remove("hidden");
+      showToast(data?.detail || "Gagal memuat pertemuan.", "error");
+    }
+  }
+  window.loadPertemuan = loadPertemuan;
+
+  // ── Filter Handler ─────────────────────────────────────────────────
+  window.onFilterChange = function() {
+    filterKelas = document.getElementById("filter-kelas").value;
+    loadPertemuan();
+  };
+
+  // ── Render Accordion ───────────────────────────────────────────────
+  function renderAccordion(list) {
+    const container = document.getElementById("pertemuan-accordion");
+    container.classList.remove("hidden");
+    container.innerHTML = list.map(p => buildCardHTML(p)).join("");
+  }
+
+  function buildCardHTML(p) {
+    const isOpen    = p.status === "aktif";
+    const statusCls = isOpen ? "status-open" : "status-closed";
+    const statusLbl = isOpen ? "Aktif" : "Selesai";
+    const waktu     = formatDateTime(p.waktu_mulai);
+
+    let durationText = "00:00:00";
+    if (!isOpen && p.waktu_mulai && p.waktu_selesai) {
+      const elapsed = Math.floor((new Date(p.waktu_selesai) - new Date(p.waktu_mulai)) / 1000);
+      durationText = formatTimer(elapsed > 0 ? elapsed : 0);
+    }
+
+    return `
+      <div class="pertemuan-card" id="card-${p.id}">
+        <!-- Card Header (clickable) -->
+        <div class="card-header" onclick="toggleCard(${p.id})">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="kelas-badge">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                ${p.kelas}
+              </span>
+              <span class="badge border ${statusCls} shrink-0">${statusLbl}</span>
+            </div>
+            <p class="text-gray-900 font-bold text-sm mt-1 truncate">${p.topik ?? "—"}</p>
+            <p class="text-gray-400 text-xs mt-0.5">${waktu}</p>
+          </div>
+          <div class="text-right shrink-0 mr-2">
+            <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Durasi</p>
+            <span class="timer-text text-base" id="timer-${p.id}">${durationText}</span>
+          </div>
+          <svg class="chevron w-5 h-5 text-gray-400" id="chevron-${p.id}"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+
+        <!-- Card Body (accordion) -->
+        <div class="card-body" id="body-${p.id}">
+          <div class="card-divider px-5 pb-5 pt-4 space-y-5">
+
+            <!-- Info + Timer + Tutup -->
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Info Pertemuan</p>
+                <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                  <span>ID: <strong class="text-persib-600 font-mono">#${p.id}</strong></span>
+                  <span>Mulai: <strong>${waktu}</strong></span>
+                </div>
+              </div>
+              ${isOpen ? `
+              <button onclick="tutupPertemuan(${p.id})"
+                      class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-red-600
+                             border border-red-200 bg-red-50 hover:bg-red-100 transition shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Tutup Pertemuan
+              </button>` : ""}
+            </div>
+
+            <!-- Form Input Penilaian (hanya tampil jika aktif) -->
+            ${isOpen ? `
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">📝 Input Penilaian</p>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                    Mahasiswa (${p.kelas})
+                  </label>
+                  <select id="nim-select-${p.id}" class="nim-select">
+                    <option value="">-- Pilih Mahasiswa --</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
+                    Rating Bintang
+                  </label>
+                  <div class="flex items-center gap-1" id="stars-${p.id}">
+                    ${[1,2,3,4,5].map(i => `
+                      <svg onclick="setStar(${p.id}, ${i})" id="star-${p.id}-${i}"
+                           class="star-btn" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    `).join("")}
+                  </div>
+                </div>
+                <button onclick="submitNilai(${p.id})"
+                        class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white
+                               bg-persib-500 hover:bg-persib-600 shadow-md hover:shadow-lg
+                               hover:-translate-y-0.5 transition-all duration-200">
+                  <span id="btn-nilai-text-${p.id}">Kirim Penilaian</span>
+                  <div id="btn-nilai-spinner-${p.id}" class="hidden spinner !w-4 !h-4 border-2"></div>
+                </button>
+              </div>
+            </div>
+            ` : ""}
+
+            <!-- Rekap Nilai Table -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Rekap Nilai</p>
+                <button onclick="loadNilai(${p.id})" class="text-xs text-gray-400 hover:text-persib-600 flex items-center gap-1 transition">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+
+              <div id="nilai-loading-${p.id}" class="hidden py-4 text-center">
+                <div class="spinner mx-auto mb-2"></div>
+                <p class="text-gray-400 text-xs">Memuat nilai...</p>
+              </div>
+
+              <div id="nilai-empty-${p.id}" class="hidden text-center py-4 text-gray-400 text-sm">
+                Belum ada nilai yang diinput.
+              </div>
+
+              <div id="nilai-wrapper-${p.id}" class="hidden">
+                <div class="overflow-x-auto rounded-xl border border-gray-200">
+                  <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-50">
+                      <tr class="border-b border-gray-200">
+                        <th class="px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">NIM</th>
+                        <th class="px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Nama</th>
+                        <th class="px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Rating</th>
+                        <th class="px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Durasi</th>
+                        <th class="px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Waktu Input</th>
+                      </tr>
+                    </thead>
+                    <tbody id="nilai-tbody-${p.id}" class="divide-y divide-gray-100"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /card inner -->
+        </div><!-- /card-body -->
+      </div><!-- /pertemuan-card -->
+    `;
+  }
+
+  // ── Toggle Accordion ───────────────────────────────────────────────
+  window.toggleCard = async function(id) {
+    if (expandedId === id) {
+      collapseCard(id);
+      expandedId = null;
+      return;
+    }
+    if (expandedId !== null) collapseCard(expandedId);
+    expandedId = id;
+    expandCard(id);
+
+    const p = pertemuanList.find(x => x.id === id);
+    if (!p) return;
+
+    // Populate NIM dropdown
+    await populateNIMDropdown(id, p.kelas);
+
+    // Load rekap nilai
+    await loadNilai(id);
+  };
+
+  function expandCard(id) {
+    document.getElementById(`body-${id}`)?.classList.add("open");
+    document.getElementById(`chevron-${id}`)?.classList.add("rotated");
+    document.getElementById(`card-${id}`)?.classList.add("is-expanded");
+
+    const p = pertemuanList.find(x => x.id === id);
+    if (p?.status === "aktif" && p.waktu_mulai) startTimer(id, p.waktu_mulai);
+  }
+
+  function collapseCard(id) {
+    document.getElementById(`body-${id}`)?.classList.remove("open");
+    document.getElementById(`chevron-${id}`)?.classList.remove("rotated");
+    document.getElementById(`card-${id}`)?.classList.remove("is-expanded");
+    stopTimer(id);
+  }
+
+  // ── NIM Dropdown & Cache ───────────────────────────────────────────
+  async function populateNIMDropdown(pertemuanId, kelas) {
+    // Selalu pastikan cache kelas ini ada (buat nampilin Nama di tabel Rekap Nilai juga)
+    if (!mahasiswaCache[kelas]) {
+      const { ok, data } = await getMahasiswa(kelas);
+      mahasiswaCache[kelas] = (ok && Array.isArray(data)) ? data : [];
+    }
+
+    const select = document.getElementById(`nim-select-${pertemuanId}`);
+    if (!select) return; // Kalau pertemuan ditutup, dropdown gak ada
+
+    const mhsList = mahasiswaCache[kelas];
+    if (mhsList.length === 0) {
+      select.innerHTML = `<option value="">-- Tidak ada mahasiswa di kelas ${kelas} --</option>`;
+    } else {
+      select.innerHTML = `<option value="">-- Pilih Mahasiswa --</option>` +
+        mhsList.map(m => `<option value="${m.nim}">${m.nama} — ${m.nim}</option>`).join("");
+    }
+
+    // Initialize or Sync TomSelect
+    if (select.tomselect) {
+      select.tomselect.sync();
+    } else {
+      new TomSelect(select, {
+        create: false,
+        placeholder: "-- Ketik nama mahasiswa --",
+        maxOptions: null
+      });
+    }
+  }
+
+  // ── Star Rating ────────────────────────────────────────────────────
+  window.setStar = function(pertemuanId, val) {
+    starValues[pertemuanId] = val;
+    [1,2,3,4,5].forEach(i => {
+      const el = document.getElementById(`star-${pertemuanId}-${i}`);
+      if (!el) return;
+      el.classList.toggle("active", i <= val);
+    });
+  };
+
+  // ── Submit Nilai ───────────────────────────────────────────────────
+  window.submitNilai = async function(id) {
+    const nim   = document.getElementById(`nim-select-${id}`)?.value?.trim();
+    const ceklis = starValues[id] || 0;
+
+    if (!nim) { showToast("Pilih mahasiswa dari dropdown.", "warning"); return; }
+    if (ceklis < 1) { showToast("Pilih rating minimal 1 bintang.", "warning"); return; }
+
+    const textEl    = document.getElementById(`btn-nilai-text-${id}`);
+    const spinnerEl = document.getElementById(`btn-nilai-spinner-${id}`);
+    if (textEl) textEl.textContent = "Mengirim...";
+    if (spinnerEl) spinnerEl.classList.remove("hidden");
+
+    const { ok, data } = await apiSubmitNilai(id, nim, ceklis);
+
+    if (textEl) textEl.textContent = "Kirim Penilaian";
+    if (spinnerEl) spinnerEl.classList.add("hidden");
+
+    if (ok) {
+      showToast(`Penilaian berhasil disimpan!`, "success");
+      // Reset form
+      const selectEl = document.getElementById(`nim-select-${id}`);
+      if (selectEl) selectEl.value = "";
+      setStar(id, 0);
+      await loadNilai(id);
+      await loadLeaderboard(); // Refresh leaderboard!
+    } else {
+      const msg = data?.detail || "Gagal mengirim nilai.";
+      showToast(typeof msg === "string" ? msg : JSON.stringify(msg), "error");
+    }
+  };
+
+  // ── Load Nilai ─────────────────────────────────────────────────────
+  window.loadNilai = async function(id) {
+    const loadingEl = document.getElementById(`nilai-loading-${id}`);
+    const emptyEl   = document.getElementById(`nilai-empty-${id}`);
+    const wrapEl    = document.getElementById(`nilai-wrapper-${id}`);
+    if (!loadingEl) return;
+
+    loadingEl.classList.remove("hidden");
+    emptyEl.classList.add("hidden");
+    wrapEl.classList.add("hidden");
+
+    const { ok, data } = await getNilai(id);
+    loadingEl.classList.add("hidden");
+
+    if (ok && Array.isArray(data) && data.length > 0) {
+      wrapEl.classList.remove("hidden");
+      renderNilaiTable(id, data);
+    } else {
+      emptyEl.classList.remove("hidden");
+    }
+  };
+
+  function renderNilaiTable(pertemuanId, rows) {
+    const tbody = document.getElementById(`nilai-tbody-${pertemuanId}`);
+    if (!tbody) return;
+    const p = pertemuanList.find(x => x.id === pertemuanId);
+    const kelas = p?.kelas || "";
+
+    tbody.innerHTML = rows.map((n, i) => {
+      const starCount = n.ceklis || 0;
+      const starsHtml = [1,2,3,4,5].map(idx =>
+        `<svg class="w-4 h-4 ${idx <= starCount ? 'text-amber-400' : 'text-gray-200'}"
+              fill="currentColor" viewBox="0 0 24 24">
+           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+         </svg>`
+      ).join("");
+      const durasi = n.durasi_menit != null ? `${n.durasi_menit} mnt` : "—";
+      // Cari nama mahasiswa dari cache
+      const mhsList  = mahasiswaCache[kelas] || [];
+      const mhs      = mhsList.find(m => m.nim === n.nim);
+      const nama     = mhs ? mhs.nama : "—";
+
+      return `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-4 py-2.5 text-gray-500 text-xs">${i + 1}</td>
+          <td class="px-4 py-2.5 font-mono text-persib-600 font-bold text-xs">${n.nim ?? "—"}</td>
+          <td class="px-4 py-2.5 text-gray-700 text-xs font-medium">${nama}</td>
+          <td class="px-4 py-2.5"><div class="flex items-center gap-0.5">${starsHtml}</div></td>
+          <td class="px-4 py-2.5"><span class="badge bg-amber-50 text-amber-600 border border-amber-200">${durasi}</span></td>
+          <td class="px-4 py-2.5 text-gray-400 text-xs">${formatDateTime(n.waktu_selesai)}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  // ── Tutup Pertemuan ────────────────────────────────────────────────
+  window.tutupPertemuan = async function(id) {
+    const p = pertemuanList.find(x => x.id === id);
+    if (!confirm(`Tutup pertemuan "${p?.topik ?? ""}"? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    const { ok, data } = await apiTutupPertemuan(id);
+    if (ok) {
+      showToast("Pertemuan berhasil ditutup.", "success");
+      collapseCard(id);
+      expandedId = null;
+      await loadPertemuan();
+    } else {
+      showToast(data?.detail || "Gagal menutup pertemuan.", "error");
+    }
+  };
+
+  // ── Timer ──────────────────────────────────────────────────────────
+  function startTimer(id, waktuMulai) {
+    stopTimer(id);
+    const start = new Date(waktuMulai);
+    timerIntervals[id] = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      const el = document.getElementById(`timer-${id}`);
+      if (el) el.textContent = formatTimer(elapsed);
+    }, 1000);
+  }
+
+  function stopTimer(id) {
+    if (timerIntervals[id]) {
+      clearInterval(timerIntervals[id]);
+      delete timerIntervals[id];
+    }
+  }
+
+  function formatTimer(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return [h, m, s].map(v => String(v).padStart(2, "0")).join(":");
+  }
+
+  // ── Modal: New Pertemuan ───────────────────────────────────────────
+  window.openNewPertemuanModal = function() {
+    document.getElementById("input-kelas").value = "";
+    document.getElementById("input-topik").value = "";
+    document.getElementById("pertemuan-modal").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    setTimeout(() => document.getElementById("input-topik").focus(), 200);
+  };
+
+  window.closePertemuanModal = function() {
+    document.getElementById("pertemuan-modal").classList.add("hidden");
+    document.body.style.overflow = "";
+  };
+
+  window.createPertemuan = async function() {
+    const kelas = document.getElementById("input-kelas").value.trim();
+    const topik = document.getElementById("input-topik").value.trim();
+    if (!kelas) { showToast("Pilih kelas terlebih dahulu.", "warning"); return; }
+    if (!topik) { showToast("Topik pertemuan wajib diisi.", "warning"); return; }
+
+    const btn     = document.getElementById("btn-create-pertemuan");
+    const textEl  = document.getElementById("btn-create-text");
+    const spinEl  = document.getElementById("btn-create-spinner");
+
+    textEl.textContent = "Membuat...";
+    spinEl.classList.remove("hidden");
+    btn.disabled = true;
+
+    const { ok, data } = await apiCreatePertemuan(topik, kelas);
+
+    textEl.textContent = "Mulai Pertemuan";
+    spinEl.classList.add("hidden");
+    btn.disabled = false;
+
+    if (ok) {
+      closePertemuanModal();
+      showToast(`Pertemuan "${topik}" untuk kelas ${kelas} berhasil dibuat!`, "success");
+      // Jika filter aktif dan kelas baru tidak sesuai, reset filter
+      if (filterKelas && filterKelas !== kelas) {
+        filterKelas = kelas;
+        document.getElementById("filter-kelas").value = kelas;
+      }
+      await loadPertemuan();
+      // Auto expand pertemuan baru
+      if (data?.id) setTimeout(() => toggleCard(data.id), 400);
+    } else {
+      showToast(data?.detail || "Gagal membuat pertemuan.", "error");
+    }
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────
+  function formatDateTime(isoStr) {
+    if (!isoStr) return "—";
+    try {
+      return new Date(isoStr).toLocaleString("id-ID", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      });
+    } catch { return isoStr; }
+  }
+
+  // ── Keyboard ───────────────────────────────────────────────────────
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePertemuanModal();
+  });
+
+  document.getElementById("pertemuan-modal").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("pertemuan-modal")) closePertemuanModal();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Tambah Mahasiswa — SEBLAK{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-8">
+  <div class="mb-6">
+    <a href="/dashboard" class="text-sm font-medium text-gray-500 hover:text-persib-600 transition flex items-center gap-1 mb-4">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      Kembali ke Dashboard
+    </a>
+    <h1 class="text-2xl font-bold text-gray-900">Tambah Mahasiswa Baru</h1>
+    <p class="text-gray-500 text-sm mt-1">Isi formulir di bawah ini untuk menambahkan data mahasiswa ke dalam sistem.</p>
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 sm:p-8">
+    <form id="mahasiswa-form" class="space-y-5">
+      <div>
+        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">NIM <span class="text-red-500">*</span></label>
+        <input type="text" id="form-nim" maxlength="12" placeholder="Masukkan 12 digit NIM"
+               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-persib-500 transition shadow-sm"/>
+        <p class="text-xs text-gray-500 mt-1.5">NIM harus terdiri dari 12 digit angka.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Nama Lengkap <span class="text-red-500">*</span></label>
+        <input type="text" id="form-nama" placeholder="Contoh: Muhammad Fajri"
+               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-persib-500 transition shadow-sm"/>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Jurusan <span class="text-red-500">*</span></label>
+          <input type="text" id="form-jurusan" placeholder="Contoh: Teknik Informatika S1"
+                 class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-persib-500 transition shadow-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Kelas <span class="text-red-500">*</span></label>
+          <input type="text" id="form-kelas" placeholder="Contoh: 03TPLE005"
+                 class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-persib-500 transition shadow-sm"/>
+        </div>
+      </div>
+
+      <div class="pt-4 mt-6 border-t border-gray-100 flex items-center justify-end gap-3">
+        <a href="/dashboard"
+           class="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:text-gray-900 transition">
+          Batal
+        </a>
+        <button type="submit" id="btn-submit"
+                class="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white
+                       bg-persib-500 hover:bg-persib-600 transition shadow-md hover:shadow-lg">
+          <span id="btn-submit-text">Simpan Data</span>
+          <div id="btn-submit-spinner" class="hidden spinner !w-4 !h-4 border-2"></div>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { createMahasiswa, showToast } from "/static/js/api.js";
+
+  document.getElementById("mahasiswa-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    const nim = document.getElementById("form-nim").value.trim();
+    const nama = document.getElementById("form-nama").value.trim();
+    const jurusan = document.getElementById("form-jurusan").value.trim();
+    const kelas = document.getElementById("form-kelas").value.trim();
+
+    if (!nim || !nama || !jurusan || !kelas) {
+      showToast("Semua field wajib diisi.", "warning"); return;
+    }
+    if (!/^\d{12}$/.test(nim)) {
+      showToast("NIM harus 12 digit angka.", "warning"); return;
+    }
+
+    const payload = { nim, nama, jurusan, kelas };
+    
+    const btnText = document.getElementById("btn-submit-text");
+    const btnSpinner = document.getElementById("btn-submit-spinner");
+    const btn = document.getElementById("btn-submit");
+
+    btnText.textContent = "Menyimpan...";
+    btnSpinner.classList.remove("hidden");
+    btn.disabled = true;
+
+    const { ok, data } = await createMahasiswa(payload);
+
+    btnText.textContent = "Simpan Data";
+    btnSpinner.classList.add("hidden");
+    btn.disabled = false;
+
+    if (ok) {
+      showToast("Mahasiswa berhasil ditambahkan!", "success");
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1500);
+    } else {
+      const msg = data?.detail || "Gagal menyimpan data.";
+      showToast(typeof msg === "string" ? msg : JSON.stringify(msg), "error");
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}Manajemen User — SEBLAK{% endblock %}
+
+{% block extra_head %}
+<style>
+  .table-row:hover td { background: #f8fafc; }
+  .table-row td { transition: background 0.15s ease; border-bottom: 1px solid #f1f5f9; }
+  #modal-overlay { transition: opacity 0.25s ease; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ──────────────────────────────────────────────── -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 mt-4">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Manajemen User</h1>
+    <p class="text-gray-600 text-sm mt-1">Kelola akun Dosen & Aslab — hanya dapat diakses oleh Dosen.</p>
+  </div>
+  <div class="flex gap-2">
+    <button onclick="doExportBackup()" id="btn-export-backup"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600
+                   text-white font-semibold text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      Backup Data
+    </button>
+    <button onclick="openAddModal()"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-persib-500 hover:bg-persib-600
+                   text-white font-semibold text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Tambah User
+    </button>
+  </div>
+</div>
+
+<!-- ── Warning Banner ──────────────────────────────────────────── -->
+<div class="mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 shadow-sm">
+  <svg class="w-5 h-5 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+  </svg>
+  <div>
+    <p class="text-amber-800 font-bold text-sm">Akses Terbatas — Khusus Dosen</p>
+    <p class="text-amber-700 text-xs mt-0.5">Endpoint ini dilindungi RBAC. Hanya akun dengan role <code class="bg-amber-100 px-1 rounded border border-amber-200">dosen</code> yang dapat mengakses halaman ini.</p>
+  </div>
+</div>
+
+<!-- ── Table Card ──────────────────────────────────────────────── -->
+<div class="bg-white border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+    <h2 class="text-sm font-bold text-gray-700">Daftar Akun Pengguna</h2>
+    <button onclick="loadUsers()" title="Refresh"
+            class="p-1.5 rounded-lg text-gray-400 hover:text-persib-600 hover:bg-gray-100 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div id="table-loading" class="flex items-center justify-center py-16 gap-3">
+    <div class="spinner"></div>
+    <p class="text-gray-500 text-sm">Memuat data...</p>
+  </div>
+
+  <!-- Forbidden state -->
+  <div id="table-forbidden" class="hidden flex flex-col items-center justify-center py-16 text-gray-500">
+    <svg class="w-12 h-12 mb-3 opacity-50 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+    </svg>
+    <p class="text-sm text-red-600 font-bold">Akses Ditolak</p>
+    <p class="text-xs mt-1 text-gray-500">Hanya role <code class="bg-gray-100 border border-gray-200 px-1 rounded text-gray-700">dosen</code> yang bisa melihat daftar ini.</p>
+  </div>
+
+  <!-- Empty state -->
+  <div id="table-empty" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
+    <svg class="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/>
+    </svg>
+    <p class="text-sm">Belum ada user.</p>
+  </div>
+
+  <!-- Table -->
+  <div id="table-wrapper" class="hidden overflow-x-auto">
+    <table class="w-full text-sm text-left">
+      <thead class="bg-gray-50">
+        <tr class="border-b border-gray-200">
+          <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">#</th>
+          <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Username</th>
+          <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
+          <th class="text-right px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody" class="divide-y divide-gray-100"></tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MODAL: Add User                                               -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="modal-overlay" class="hidden fixed inset-0 z-50 flex min-h-screen items-start justify-center p-4 pt-12 sm:pt-20 bg-gray-900/50 backdrop-blur-sm overflow-y-auto">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl mx-auto mb-10">
+
+    <div class="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-gray-50 rounded-t-2xl">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-persib-50 flex items-center justify-center">
+          <svg class="w-5 h-5 text-persib-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-gray-900">Tambah User Baru</h3>
+      </div>
+      <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Username <span class="text-red-500">*</span></label>
+        <input type="text" id="form-username" placeholder="Nama pengguna..."
+               class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-persib-500 transition"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Password <span class="text-red-500">*</span></label>
+        <input type="password" id="form-password" placeholder="Password..."
+               class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-persib-500 transition"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Role <span class="text-red-500">*</span></label>
+        <select id="form-role"
+                class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-gray-900 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-persib-500 transition">
+          <option value="aslab">Aslab</option>
+          <option value="dosen">Dosen</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+      <button onclick="closeModal()"
+              class="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition">
+        Batal
+      </button>
+      <button id="btn-submit" onclick="submitUser()"
+              class="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white
+                     bg-persib-500 hover:bg-persib-600 transition shadow-md hover:shadow-lg">
+        <span id="btn-submit-text">Simpan</span>
+        <div id="btn-submit-spinner" class="hidden spinner !w-4 !h-4 border-2"></div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Delete Confirm -->
+<div id="delete-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+  <div class="bg-white border border-gray-100 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+    <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+      <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+    </div>
+    <h3 class="text-lg font-bold text-gray-900 mb-2">Hapus User?</h3>
+    <p class="text-gray-600 text-sm mb-6">Akun <strong id="delete-username" class="text-red-500"></strong> akan dihapus permanen.</p>
+    <div class="flex gap-3">
+      <button onclick="closeDeleteModal()"
+              class="flex-1 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition">
+        Batal
+      </button>
+      <button id="btn-confirm-delete" onclick="confirmDelete()"
+              class="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-500 transition flex items-center justify-center gap-2">
+        <span>Ya, Hapus</span>
+        <div id="delete-spinner" class="hidden spinner !w-4 !h-4 border-2"></div>
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { getUsers, createUser, deleteUser, showToast, getUsername } from "/static/js/api.js";
+
+  let deleteTarget = null;
+
+  loadUsers();
+
+  async function loadUsers() {
+    document.getElementById("table-loading").classList.remove("hidden");
+    document.getElementById("table-forbidden").classList.add("hidden");
+    document.getElementById("table-empty").classList.add("hidden");
+    document.getElementById("table-wrapper").classList.add("hidden");
+
+    const { ok, status, data } = await getUsers();
+
+    document.getElementById("table-loading").classList.add("hidden");
+
+    if (status === 403 || status === 401) {
+      document.getElementById("table-forbidden").classList.remove("hidden");
+      showToast("Akses ditolak. Hanya role Dosen yang bisa melihat user.", "error");
+      return;
+    }
+
+    if (ok && Array.isArray(data) && data.length > 0) {
+      document.getElementById("table-wrapper").classList.remove("hidden");
+      renderTable(data);
+    } else if (ok) {
+      document.getElementById("table-empty").classList.remove("hidden");
+    } else {
+      document.getElementById("table-empty").classList.remove("hidden");
+      showToast(data?.detail || "Gagal memuat data user.", "error");
+    }
+  }
+  window.loadUsers = loadUsers;
+
+  function renderTable(rows) {
+    const tbody = document.getElementById("users-tbody");
+    const currentUsername = getUsername();
+    
+    tbody.innerHTML = rows.map((u, i) => {
+      const roleColor = u.role === "dosen"
+        ? "bg-violet-50 text-violet-600 border-violet-200"
+        : "bg-sky-50 text-sky-600 border-sky-200";
+        
+      const isCurrentUser = u.username === currentUsername;
+      
+      const actionButton = isCurrentUser
+        ? `<span class="text-xs text-gray-500 italic px-2">Anda</span>`
+        : `<button onclick="openDeleteModal('${u.username}')"
+                  class="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-50 text-red-600 border border-red-200
+                         hover:bg-red-100 transition shadow-sm">Hapus</button>`;
+      return `
+        <tr class="table-row border-b border-gray-100 last:border-0">
+          <td class="px-6 py-3 text-gray-500 text-xs">${i + 1}</td>
+          <td class="px-6 py-3 text-gray-900 font-bold">${u.username ?? "—"}</td>
+          <td class="px-6 py-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${roleColor}">
+              ${u.role ?? "—"}
+            </span>
+          </td>
+          <td class="px-6 py-3 text-right">
+            ${actionButton}
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  // ── Modal Add ──────────────────────────────────────────────────────
+  window.openAddModal = function() {
+    document.getElementById("form-username").value = "";
+    document.getElementById("form-password").value = "";
+    document.getElementById("form-role").value = "aslab";
+    document.getElementById("modal-overlay").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  };
+
+  window.closeModal = function() {
+    document.getElementById("modal-overlay").classList.add("hidden");
+    document.body.style.overflow = "";
+  };
+
+  window.submitUser = async function() {
+    const username = document.getElementById("form-username").value.trim();
+    const password = document.getElementById("form-password").value.trim();
+    const role = document.getElementById("form-role").value;
+
+    if (!username || !password) { showToast("Username dan password wajib diisi.", "warning"); return; }
+
+    document.getElementById("btn-submit-text").textContent = "Menyimpan...";
+    document.getElementById("btn-submit-spinner").classList.remove("hidden");
+    document.getElementById("btn-submit").disabled = true;
+
+    const { ok, data } = await createUser({ username, password, role });
+
+    document.getElementById("btn-submit-text").textContent = "Simpan";
+    document.getElementById("btn-submit-spinner").classList.add("hidden");
+    document.getElementById("btn-submit").disabled = false;
+
+    if (ok) {
+      closeModal();
+      showToast(`User "${username}" berhasil dibuat.`, "success");
+      await loadUsers();
+    } else {
+      const msg = data?.detail || "Gagal membuat user.";
+      showToast(typeof msg === "string" ? msg : JSON.stringify(msg), "error");
+    }
+  };
+
+  // ── Modal Delete ───────────────────────────────────────────────────
+  window.openDeleteModal = function(username) {
+    deleteTarget = username;
+    document.getElementById("delete-username").textContent = username;
+    document.getElementById("delete-overlay").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  };
+
+  window.closeDeleteModal = function() {
+    document.getElementById("delete-overlay").classList.add("hidden");
+    document.body.style.overflow = "";
+  };
+
+  window.confirmDelete = async function() {
+    if (!deleteTarget) return;
+    document.getElementById("delete-spinner").classList.remove("hidden");
+    document.getElementById("btn-confirm-delete").disabled = true;
+
+    const { ok, data } = await deleteUser(deleteTarget);
+
+    document.getElementById("delete-spinner").classList.add("hidden");
+    document.getElementById("btn-confirm-delete").disabled = false;
+
+    if (ok) {
+      closeDeleteModal();
+      showToast(`User "${deleteTarget}" berhasil dihapus.`, "success");
+      deleteTarget = null;
+      await loadUsers();
+    } else {
+      showToast(data?.detail || "Hapus gagal.", "error");
+    }
+  };
+
+  // ── Export Backup ──────────────────────────────────────────────────
+  window.doExportBackup = async function() {
+    const btn = document.getElementById("btn-export-backup");
+    btn.disabled = true;
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = `<div class="spinner !w-4 !h-4 border-2"></div> Mem-backup...`;
+
+    try {
+      // Import dari api.js secara dinamis kalau perlu, atau sudah ada di atas
+      const { exportBackup } = await import('/static/js/api.js');
+      const { ok, data } = await exportBackup();
+
+      if (ok && data && data.data) {
+        // Trigger browser download
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const dateStr = new Date().toISOString().slice(0, 10);
+        a.download = `seblak_backup_${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast("Backup berhasil di-download!", "success", 4000);
+      } else {
+        showToast(data?.detail || "Gagal melakukan backup.", "error");
+      }
+    } catch (e) {
+      showToast("Terjadi kesalahan saat membackup data.", "error");
+    } finally {
+      btn.innerHTML = oldHtml;
+      btn.disabled = false;
+    }
+  };
+
+  // Keyboard & overlay click
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { closeModal(); closeDeleteModal(); }
+  });
+  document.getElementById("modal-overlay").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-overlay")) closeModal();
+  });
+  document.getElementById("delete-overlay").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("delete-overlay")) closeDeleteModal();
+  });
+</script>
+{% endblock %}

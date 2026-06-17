@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Mahasiswa — SEBLAK{% endblock %}
+
+{% block extra_head %}
+<style>
+  .stat-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+  }
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  .table-row:hover td { background: #f8fafc; }
+  .table-row td { transition: background 0.15s ease; border-bottom: 1px solid #f1f5f9; }
+
+  /* Modal animation */
+  #modal-overlay { transition: opacity 0.25s ease; }
+  #modal-box { transition: transform 0.25s ease, opacity 0.25s ease; }
+  #modal-overlay.hidden #modal-box {
+    transform: scale(0.95) translateY(16px);
+    opacity: 0;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  /* Chip buttons */
+  .chip {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .chip.active {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    color: #1A3C7A;
+  }
+  .chip:not(.active) {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    color: #6b7280;
+  }
+  .chip:hover { filter: brightness(0.95); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ─────────────────────────────────────────────── -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 mt-4">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Dashboard Mahasiswa</h1>
+    <p class="text-gray-600 text-sm mt-1">Kelola data mahasiswa — tambah, edit, hapus, cari, dan urutkan.</p>
+  </div>
+  <a href="/mahasiswa/add"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-persib-500 hover:bg-persib-600
+                 text-white font-semibold text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Tambah Mahasiswa
+  </a>
+</div>
+
+<!-- ── Stat Cards ──────────────────────────────────────────────── -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+  <div class="stat-card rounded-2xl p-4">
+    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Total</p>
+    <p id="stat-total" class="text-3xl font-bold text-gray-900">—</p>
+    <p class="text-xs text-gray-500 mt-1">Mahasiswa</p>
+  </div>
+  <div class="stat-card rounded-2xl p-4">
+    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Ditampilkan</p>
+    <p id="stat-shown" class="text-3xl font-bold text-persib-600">—</p>
+    <p class="text-xs text-gray-500 mt-1">Baris</p>
+  </div>
+  <div class="stat-card rounded-2xl p-4">
+    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Sort By</p>
+    <p id="stat-sortby" class="text-sm font-semibold text-emerald-600 mt-1">—</p>
+  </div>
+  <div class="stat-card rounded-2xl p-4">
+    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Mode Cari</p>
+    <p id="stat-searchmode" class="text-sm font-semibold text-purple-600 mt-1">—</p>
+  </div>
+</div>
+
+<!-- ── Search & Sort Toolbar ───────────────────────────────────── -->
+<div class="bg-white border border-gray-200 shadow-sm rounded-2xl p-5 mb-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <!-- Search Panel -->
+    <div>
+      <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">🔍 Pencarian</p>
+      <div class="flex gap-2 mb-3">
+        <div class="flex gap-1">
+          <button class="chip active" id="chip-search-nim" onclick="switchSearchMode('nim')">Cari NIM</button>
+          <button class="chip" id="chip-search-keyword" onclick="switchSearchMode('keyword')">Kata Kunci</button>
+        </div>
+      </div>
+
+      <!-- Search by NIM -->
+      <div id="panel-search-nim" class="flex gap-2">
+        <input type="text" id="input-search-nim" placeholder="Masukkan NIM (12 digit)..."
+               class="flex-1 px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400
+                      focus:outline-none focus:ring-2 focus:ring-persib-500 transition"/>
+        <div class="flex gap-1">
+          <button class="chip active" id="chip-linear" onclick="switchAlgo('linear')">Linear</button>
+          <button class="chip" id="chip-binary" onclick="switchAlgo('binary')">Binary</button>
+        </div>
+        <button onclick="doSearchNim()"
+                class="px-4 py-2 bg-persib-500 hover:bg-persib-600 text-white text-sm font-medium rounded-xl transition shadow-sm">
+          Cari
+        </button>
+      </div>
+
+      <!-- Sequential Search by keyword -->
+      <div id="panel-search-keyword" class="hidden flex gap-2">
+        <input type="text" id="input-search-keyword" placeholder="Nama, NIM, jurusan, kelas..."
+               class="flex-1 px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400
+                      focus:outline-none focus:ring-2 focus:ring-persib-500 transition"/>
+        <button onclick="doSeqSearch()"
+                class="px-4 py-2 bg-persib-500 hover:bg-persib-600 text-white text-sm font-medium rounded-xl transition shadow-sm">
+          Cari
+        </button>
+      </div>
+
+      <button onclick="resetSearch()"
+              class="mt-2 text-xs text-gray-500 hover:text-persib-600 transition underline underline-offset-2">
+        Reset pencarian
+      </button>
+    </div>
+
+    <!-- Sort Panel -->
+    <div>
+      <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">⇅ Pengurutan</p>
+      <div class="flex flex-wrap gap-2">
+        <div class="flex gap-1">
+          <button class="chip active" id="chip-insertion" onclick="switchSortMethod('insertion')">Insertion Sort</button>
+          <button class="chip" id="chip-selection" onclick="switchSortMethod('selection')">Selection Sort</button>
+        </div>
+        <div class="flex gap-1">
+          <button class="chip active" id="chip-key-nim" onclick="switchSortKey('nim')">by NIM</button>
+          <button class="chip" id="chip-key-nama" onclick="switchSortKey('nama')">by Nama</button>
+        </div>
+        <button onclick="doSort()"
+                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-xl transition shadow-sm flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
+          </svg>
+          Urutkan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Table ───────────────────────────────────────────────────── -->
+<div class="bg-white border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
+  <!-- Table header row -->
+  <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+    <div class="flex items-center gap-3">
+      <h2 class="text-sm font-bold text-gray-700">Data Mahasiswa</h2>
+      <span id="execution-time" class="hidden text-xs font-semibold text-persib-700 bg-persib-50 border border-persib-100 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span id="execution-time-val">0ms</span>
+      </span>
+    </div>
+    <button onclick="loadMahasiswa()" title="Refresh"
+            class="p-1.5 rounded-lg text-gray-400 hover:text-persib-600 hover:bg-gray-100 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Loading skeleton -->
+  <div id="table-loading" class="flex items-center justify-center py-16 gap-3">
+    <div class="spinner"></div>
+    <p class="text-gray-500 text-sm">Memuat data...</p>
+  </div>
+
+  <!-- Empty state -->
+  <div id="table-empty" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
+    <svg class="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    </svg>
+    <p class="text-sm">Tidak ada data ditemukan.</p>
+  </div>
+
+  <!-- Table wrapper -->
+  <div id="table-wrapper" class="hidden overflow-x-auto">
+    <table class="w-full text-sm text-left">
+      <thead class="bg-gray-50">
+        <tr class="border-b border-gray-200">
+          <th class="table-th px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">#</th>
+          <th class="table-th px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">NIM</th>
+          <th class="table-th px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nama</th>
+          <th class="table-th px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Jurusan</th>
+          <th class="table-th px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Kelas</th>
+          <th class="table-th text-right px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="mahasiswa-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- POPOVER: Delete Confirm                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="delete-popover" class="hidden absolute z-50 bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center border border-gray-100 ring-1 ring-gray-900/5">
+  <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+    <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+    </svg>
+  </div>
+  <h3 class="text-lg font-bold text-gray-900 mb-2">Hapus Mahasiswa?</h3>
+  <p class="text-gray-600 text-sm mb-6">Data <strong id="delete-nim" class="text-red-500"></strong> akan dihapus permanen.</p>
+  <div class="flex gap-3">
+    <button onclick="closeDeleteModal()"
+            class="flex-1 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition">
+      Batal
+    </button>
+    <button id="btn-confirm-delete" onclick="confirmDelete()"
+            class="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-500 transition flex items-center justify-center gap-2">
+      <span>Ya, Hapus</span>
+      <div id="delete-spinner" class="hidden spinner !w-4 !h-4 border-2"></div>
+    </button>
+  </div>
+  <!-- Segitiga pointer ke bawah -->
+  <div class="absolute -bottom-2 right-6 w-4 h-4 bg-white border-b border-r border-gray-100 transform rotate-45"></div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script type="module">
+  import {
+    getMahasiswa, createMahasiswa, updateMahasiswa, deleteMahasiswa,
+    searchByNim, sequentialSearch, sortMahasiswa, showToast
+  } from "/static/js/api.js";
+
+  // ── State ────────────────────────────────────────────────────────
+  let allData = [];
+  let editMode = false;
+  let deleteNimTarget = null;
+  let searchMode = "nim";       // "nim" | "keyword"
+  let algoMode = "linear";      // "linear" | "binary"
+  let sortMethod = "insertion";
+  let sortKey = "nim";
+
+  // ── Init ─────────────────────────────────────────────────────────
+  loadMahasiswa();
+
+  async function loadMahasiswa() {
+    showLoading();
+    const { ok, data } = await getMahasiswa();
+    if (ok) {
+      allData = Array.isArray(data) ? data : [];
+      renderTable(allData);
+      updateStats(allData.length, allData.length, "—", "—");
+    } else {
+      showEmpty();
+      showToast(data?.detail || "Gagal memuat data mahasiswa.", "error");
+    }
+  }
+  window.loadMahasiswa = loadMahasiswa;
+
+  // ── Rendering ────────────────────────────────────────────────────
+  function setExecutionTime(ms) {
+    const el = document.getElementById("execution-time");
+    const val = document.getElementById("execution-time-val");
+    if (ms !== null) {
+      val.textContent = ms.toFixed(1) + "ms";
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  }
+
+  function showLoading() {
+    document.getElementById("table-loading").classList.remove("hidden");
+    document.getElementById("table-empty").classList.add("hidden");
+    document.getElementById("table-wrapper").classList.add("hidden");
+    setExecutionTime(null);
+  }
+
+  function showEmpty() {
+    document.getElementById("table-loading").classList.add("hidden");
+    document.getElementById("table-empty").classList.remove("hidden");
+    document.getElementById("table-wrapper").classList.add("hidden");
+  }
+
+  function renderTable(rows) {
+    document.getElementById("table-loading").classList.add("hidden");
+    document.getElementById("table-empty").classList.add("hidden");
+
+    if (!rows || rows.length === 0) { showEmpty(); return; }
+
+    document.getElementById("table-wrapper").classList.remove("hidden");
+    const tbody = document.getElementById("mahasiswa-tbody");
+    tbody.innerHTML = rows.map((m, i) => `
+      <tr class="table-row border-b border-gray-100 last:border-0">
+        <td class="px-6 py-3 text-gray-500 font-mono text-xs">${i + 1}</td>
+        <td class="px-6 py-3 font-mono text-persib-600 font-bold">${m.nim ?? "—"}</td>
+        <td class="px-6 py-3 text-gray-900 font-medium">${m.nama ?? "—"}</td>
+        <td class="px-6 py-3 text-gray-600">${m.jurusan ?? "—"}</td>
+        <td class="px-6 py-3">
+          <span class="badge bg-emerald-50 text-emerald-600 border border-emerald-200">${m.kelas ?? "—"}</span>
+        </td>
+        <td class="px-6 py-3 text-right">
+          <div class="flex justify-end gap-2">
+            <a href="/mahasiswa/edit/${m.nim}"
+                    class="px-3 py-1.5 text-xs font-bold rounded-lg bg-persib-50 text-persib-600 border border-persib-200
+                           hover:bg-persib-100 transition shadow-sm inline-block">Edit</a>
+            <button onclick="openDeleteModal(this, '${m.nim}')"
+                    class="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-50 text-red-600 border border-red-200
+                           hover:bg-red-100 transition shadow-sm">Hapus</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    updateStats(allData.length, rows.length, sortKey + " (" + sortMethod + ")", searchMode);
+  }
+
+  function updateStats(total, shown, sortBy, mode) {
+    document.getElementById("stat-total").textContent = total;
+    document.getElementById("stat-shown").textContent = shown;
+    document.getElementById("stat-sortby").textContent = sortBy;
+    document.getElementById("stat-searchmode").textContent = mode;
+  }
+
+  // ── Search Mode ──────────────────────────────────────────────────
+  window.switchSearchMode = function(mode) {
+    searchMode = mode;
+    document.getElementById("panel-search-nim").classList.toggle("hidden", mode !== "nim");
+    document.getElementById("panel-search-keyword").classList.toggle("hidden", mode !== "keyword");
+    document.getElementById("chip-search-nim").classList.toggle("active", mode === "nim");
+    document.getElementById("chip-search-keyword").classList.toggle("active", mode === "keyword");
+  };
+
+  window.switchAlgo = function(algo) {
+    algoMode = algo;
+    document.getElementById("chip-linear").classList.toggle("active", algo === "linear");
+    document.getElementById("chip-binary").classList.toggle("active", algo === "binary");
+  };
+
+  window.switchSortMethod = function(method) {
+    sortMethod = method;
+    document.getElementById("chip-insertion").classList.toggle("active", method === "insertion");
+    document.getElementById("chip-selection").classList.toggle("active", method === "selection");
+  };
+
+  window.switchSortKey = function(key) {
+    sortKey = key;
+    document.getElementById("chip-key-nim").classList.toggle("active", key === "nim");
+    document.getElementById("chip-key-nama").classList.toggle("active", key === "nama");
+  };
+
+  // ── Search Actions ───────────────────────────────────────────────
+  window.doSearchNim = async function() {
+    const nim = document.getElementById("input-search-nim").value.trim();
+    if (!nim) { showToast("Masukkan NIM untuk dicari.", "warning"); return; }
+    showLoading();
+    
+    const start = performance.now();
+    const { ok, data } = await searchByNim(nim, algoMode);
+    const end = performance.now();
+    
+    if (ok) {
+      const results = Array.isArray(data) ? data : data ? [data] : [];
+      renderTable(results);
+      updateStats(allData.length, results.length, sortKey, `${algoMode} search`);
+      setExecutionTime(end - start);
+      showToast(`Ditemukan ${results.length} hasil (${algoMode} search).`, results.length > 0 ? "success" : "info");
+    } else {
+      showEmpty();
+      showToast(data?.detail || "Mahasiswa tidak ditemukan.", "error");
+    }
+  };
+
+  window.doSeqSearch = async function() {
+    const keyword = document.getElementById("input-search-keyword").value.trim();
+    if (!keyword) { showToast("Masukkan kata kunci pencarian.", "warning"); return; }
+    showLoading();
+    
+    const start = performance.now();
+    const { ok, data } = await sequentialSearch(keyword);
+    const end = performance.now();
+    
+    if (ok) {
+      const results = Array.isArray(data) ? data : [];
+      renderTable(results);
+      updateStats(allData.length, results.length, sortKey, "sequential");
+      setExecutionTime(end - start);
+      showToast(`Ditemukan ${results.length} hasil.`, results.length > 0 ? "success" : "info");
+    } else {
+      showEmpty();
+      showToast(data?.detail || "Pencarian gagal.", "error");
+    }
+  };
+
+  window.resetSearch = function() {
+    document.getElementById("input-search-nim").value = "";
+    document.getElementById("input-search-keyword").value = "";
+    renderTable(allData);
+    updateStats(allData.length, allData.length, "—", "—");
+    showToast("Pencarian direset.", "info");
+  };
+
+  // ── Sort ─────────────────────────────────────────────────────────
+  window.doSort = async function() {
+    showLoading();
+    
+    const start = performance.now();
+    const { ok, data } = await sortMahasiswa(sortMethod, sortKey);
+    const end = performance.now();
+    
+    if (ok) {
+      const results = Array.isArray(data) ? data : [];
+      allData = results;
+      renderTable(results);
+      setExecutionTime(end - start);
+      showToast(`Data diurutkan dengan ${sortMethod} sort by ${sortKey}.`, "success");
+    } else {
+      renderTable(allData);
+      showToast(data?.detail || "Gagal mengurutkan.", "error");
+    }
+  };
+
+
+
+  // ── Delete Popover ───────────────────────────────────────────────
+  window.openDeleteModal = function(btnEl, nim) {
+    deleteNimTarget = nim;
+    document.getElementById("delete-nim").textContent = nim;
+    
+    const popover = document.getElementById("delete-popover");
+    popover.classList.remove("hidden");
+    
+    // Hitung posisi tombol relatif terhadap viewport
+    const rect = btnEl.getBoundingClientRect();
+    
+    // Sementara letakkan di luar layar untuk dapat ukuran aslinya
+    popover.style.top = "-9999px";
+    popover.style.left = "-9999px";
+    
+    // Hitung posisi yang tepat setelah kita tau ukuran popover
+    setTimeout(() => {
+      const popWidth = popover.offsetWidth;
+      const popHeight = popover.offsetHeight;
+      
+      // Posisi top: di atas tombol, dikurangi margin 8px
+      let topPos = rect.top + window.scrollY - popHeight - 8;
+      // Posisi left: disejajarkan dengan tepi kanan tombol
+      let leftPos = rect.right + window.scrollX - popWidth;
+      
+      popover.style.top = topPos + "px";
+      popover.style.left = leftPos + "px";
+    }, 0);
+  };
+
+  window.closeDeleteModal = function() {
+    document.getElementById("delete-popover").classList.add("hidden");
+  };
+
+  window.confirmDelete = async function() {
+    if (!deleteNimTarget) return;
+    document.getElementById("delete-spinner").classList.remove("hidden");
+    document.getElementById("btn-confirm-delete").disabled = true;
+
+    const { ok, data } = await deleteMahasiswa(deleteNimTarget);
+
+    document.getElementById("delete-spinner").classList.add("hidden");
+    document.getElementById("btn-confirm-delete").disabled = false;
+
+    if (ok) {
+      closeDeleteModal();
+      showToast(`Mahasiswa NIM ${deleteNimTarget} berhasil dihapus.`, "success");
+      deleteNimTarget = null;
+      await loadMahasiswa();
+    } else {
+      showToast(data?.detail || "Hapus gagal.", "error");
+    }
+  };
+
+  // ── Keyboard Shortcuts ───────────────────────────────────────────
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeDeleteModal();
+    }
+  });
+
+
+  // Close popover if clicked outside
+  document.addEventListener("click", (e) => {
+    const popover = document.getElementById("delete-popover");
+    if (!popover.classList.contains("hidden") && 
+        !popover.contains(e.target) && 
+        !e.target.closest("button[onclick^='openDeleteModal']")) {
+      closeDeleteModal();
+    }
+  });
+</script>
+{% endblock %}
