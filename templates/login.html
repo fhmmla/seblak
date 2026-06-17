@@ -110,7 +110,7 @@
   });
 
   function setLoading(loading) {
-    btnText.textContent = loading ? "Masuk... (Max 50s jika server sleep)" : "Masuk";
+    btnText.textContent = loading ? "Memproses... (Mohon tunggu hingga 90 detik)" : "Masuk";
     btnSpin.classList.toggle("hidden", !loading);
     document.getElementById("btn-login").disabled = loading;
   }
