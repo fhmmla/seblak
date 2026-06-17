@@ -17,6 +17,8 @@ Sistem ini dibangun menggunakan arsitektur perpaduan antara **Flask (Python)** s
 > **Catatan:** Project ini berfokus pada sisi **Frontend (GUI Client)**.
 
 🔗 **Repository:** [https://github.com/fhmmla/seblak](https://github.com/fhmmla/seblak)  
+🌍 **Live Demo Frontend:** [https://seblak-pedas.vercel.app/](https://seblak-pedas.vercel.app/)  
+⚙️ **Live API Backend:** [https://seblak-api.onrender.com/](https://seblak-api.onrender.com/)  
 ⚖️ **Lisensi:** MIT License
 
 ---
