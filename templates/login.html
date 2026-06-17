@@ -23,26 +23,10 @@
       <h2 class="text-xl font-bold text-gray-900 mb-1">Selamat Datang 👋</h2>
       <p class="text-gray-500 text-sm mb-7">Masuk untuk mengelola data mahasiswa dan penilaian lab.</p>
 
-      <form id="login-form" novalidate>
+      <form id="login-form" novalidate class="space-y-5">
         
-        <!-- Connection Test Container -->
-        <div id="connection-test-container" class="text-center py-4">
-          <div class="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 text-amber-600">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-          </div>
-          <p class="text-sm text-gray-500 mb-6">Server backend (Render) mungkin sedang dalam mode <i>sleep</i>. Silakan tes koneksi untuk membangunkannya terlebih dahulu.</p>
-          <button type="button" id="btn-test-conn"
-                  class="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm shadow-md transition-all duration-200">
-            <span id="btn-test-text">Test Connection Pooler</span>
-            <div id="btn-test-spinner" class="hidden spinner !w-4 !h-4 border-2"></div>
-          </button>
-          <div id="test-error" class="hidden mt-3 text-red-500 text-xs font-medium bg-red-50 p-2 rounded border border-red-100">
-            Koneksi gagal/timeout. Jangan panik, silakan klik tombol lagi (Render butuh ~50 detik untuk bangun).
-          </div>
-        </div>
-
-        <!-- Login Fields (Hidden by default) -->
-        <div id="login-fields" class="hidden space-y-5">
+        <!-- Login Fields -->
+        <div id="login-fields" class="space-y-5">
           <!-- Username -->
           <div>
             <label for="username" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Username</label>
@@ -125,53 +109,8 @@
     }
   });
 
-  // Connection Test Logic
-  const testContainer = document.getElementById("connection-test-container");
-  const loginFields   = document.getElementById("login-fields");
-  const btnTest       = document.getElementById("btn-test-conn");
-  const btnTestText   = document.getElementById("btn-test-text");
-  const btnTestSpin   = document.getElementById("btn-test-spinner");
-  const testError     = document.getElementById("test-error");
-
-  btnTest.addEventListener("click", async () => {
-    btnTest.disabled = true;
-    btnTestSpin.classList.remove("hidden");
-    testError.classList.add("hidden");
-
-    let isAwake = false;
-    // Vercel limits python execution to 10s. We will loop up to 6 times (max 60s)
-    for (let i = 1; i <= 6; i++) {
-      btnTestText.textContent = `Menghubungkan API... (Percobaan ${i}/6)`;
-      try {
-        const res = await fetch("/api/ping");
-        if (res.ok || res.status === 401 || res.status === 404) {
-          isAwake = true;
-          break;
-        }
-      } catch (e) {
-        console.log("Ping error:", e);
-      }
-      
-      if (!isAwake && i < 6) {
-        // Wait 2 seconds before next attempt
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-
-    if (isAwake) {
-      showToast("Koneksi API berhasil! Server siap digunakan.", "success");
-      testContainer.classList.add("hidden");
-      loginFields.classList.remove("hidden");
-    } else {
-      testError.classList.remove("hidden");
-      btnTest.disabled = false;
-      btnTestText.textContent = "Coba Lagi (Test Connection)";
-      btnTestSpin.classList.add("hidden");
-    }
-  });
-
   function setLoading(loading) {
-    btnText.textContent = loading ? "Masuk..." : "Masuk";
+    btnText.textContent = loading ? "Masuk... (Max 50s jika server sleep)" : "Masuk";
     btnSpin.classList.toggle("hidden", !loading);
     document.getElementById("btn-login").disabled = loading;
   }

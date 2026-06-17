@@ -5,6 +5,7 @@
 
 const TOKEN_KEY = "seblak_token";
 const USERNAME_KEY = "seblak_username";
+const BASE_API_URL = "https://seblak-api.onrender.com";
 
 // ─── Token Helpers ────────────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ export function isLoggedIn() {
 // Background ping to keep Render server awake (every 14 minutes)
 if (isLoggedIn()) {
   setInterval(() => {
-    fetch("/api/ping").catch(e => console.log("Background ping failed:", e));
+    fetch(BASE_API_URL + "/ping").catch(e => console.log("Background ping failed:", e));
   }, 14 * 60 * 1000); // 14 minutes
 }
 
@@ -52,9 +53,13 @@ async function apiFetch(endpoint, options = {}) {
   const token = getToken();
   const headers = {
     "Content-Type": "application/json",
-    ...(token ? { "X-Token": token } : {}),
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
+
+  const realEndpoint = endpoint.startsWith("/api")
+    ? BASE_API_URL + endpoint.substring(4)
+    : BASE_API_URL + endpoint;
 
   const config = {
     method: options.method || "GET",
@@ -63,7 +68,7 @@ async function apiFetch(endpoint, options = {}) {
   };
 
   try {
-    const response = await fetch(endpoint, config);
+    const response = await fetch(realEndpoint, config);
     let data;
     try {
       data = await response.json();
@@ -92,10 +97,14 @@ async function apiFetch(endpoint, options = {}) {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function loginApi(username, password) {
-  const response = await fetch("/api/login", {
+  const formData = new URLSearchParams();
+  formData.append("username", username);
+  formData.append("password", password);
+
+  const response = await fetch(BASE_API_URL + "/login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formData.toString(),
   });
   let data;
   try {
